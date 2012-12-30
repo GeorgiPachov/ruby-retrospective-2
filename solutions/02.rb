@@ -35,20 +35,12 @@ class Collection
   end
 
   def Collection.parse(text)
-    #TODO: Map 3 lines -> a song instance?
-    # Split-> map
-    result = []
-    text.each_line("\n\n") { |song_info| result << parse_song(song_info) }
+    result =  text.each_line("\n\n").map{ |song_info| parse_song(song_info) }
     Collection.new result
   end
 
   def filter(criteria)
-    filtered = @song_list.select {|song| criteria.accept? song }
-    Collection.new filtered
-  end
-
-  def filter(criteria)
-    filtered = @song_list.select {|song| criteria.accept? song }
+    filtered = @song_list.select {|song| criteria.accept? song }.uniq
     Collection.new filtered
   end
 
@@ -57,7 +49,7 @@ class Collection
   end
 
   def adjoin(collection)
-    Collection.new (@song_list | collection.song_list)
+    Collection.new (@song_list | collection.song_list).uniq
   end
 
   private

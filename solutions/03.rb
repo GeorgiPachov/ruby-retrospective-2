@@ -1,17 +1,16 @@
-class Expr #Using as a leaf node
+class Expr
   def self.build(expression_tree)
-    if (expression_tree.kind_of? Array)
-      length = expression_tree.size
-      if length == 3
-        return build_binary_expr(expression_tree.first,Expr.build(expression_tree.fetch(1)),
-          Expr.build(expression_tree.fetch(2)))
-      elsif length == 2
-        return build_unary_expr(expression_tree.first,Expr.build(expression_tree.fetch(1)))
-      end
-    else
-      Expr.new(expression_tree)
-    end
+    return Expr.new(expression_tree) unless expression_tree.kind_of? Array
+
+    length = expression_tree.size
+    operand = expression_tree.first
+    expr_1 = expression_tree.fetch(1)
+    expr_2 = expression_tree.fetch(2) unless length == 2
+
+    return build_unary_expr(operand,build(expr_1)) if length == 2
+    return build_binary_expr(operand,build(expr_1),Expr.build(expr_2)) if length == 3
   end
+
 
   def initialize(primitive)
     @expr = primitive
@@ -50,15 +49,15 @@ class Expr #Using as a leaf node
   def self.build_unary_expr(operation,expr1)
     case operation
     when :sin
-      return SineExpr.new(expr1)
+      SineExpr.new(expr1)
     when :cos
-      return CosineExpr.new(expr1)
+      CosineExpr.new(expr1)
     when :-
-        return NegateExpr.new(expr1)
+        NegateExpr.new(expr1)
     when :number
-      return NumberExpr.new(expr1)
+      NumberExpr.new(expr1)
     when :variable
-      return VariableExpr.new(expr1)
+      VariableExpr.new(expr1)
     end
   end
 end
@@ -74,6 +73,10 @@ class UnaryExpr < Expr
 
   def is_constant_expr
     false
+  end
+
+  def simplify
+    self
   end
 
 end
@@ -100,15 +103,17 @@ class AdditionExpr < BinaryExpr
   def simplify
     simplified_a = @expr_a.simplify
     simplified_b = @expr_b.simplify
+
     return simplified_a if simplified_b == 0
     return simplified_b if simplified_a == 0
+
     return NumberExpr.new(Expr.new(evaluate)) if is_constant_expr
 
     return AdditionExpr.new(simplified_a, simplified_b)
   end
 
   def derive(variable)
-    AdditionExpr.new((@expr_a.derive variable) ,(@expr_b.derive variable)).simplify
+    AdditionExpr.new((@expr_a.derive variable),(@expr_b.derive variable)).simplify
   end
 
   def to_s
@@ -131,6 +136,7 @@ class MultiplicationExpr < BinaryExpr
 
     return simplified_a if simplified_b == NumberExpr::ONE
     return simplified_b if simplified_a == NumberExpr::ONE
+
     return NumberExpr.new(Expr.new(evaluate)) if is_constant_expr
     return MultiplicationExpr.new(simplified_a, simplified_b)
   end
@@ -150,10 +156,6 @@ end
 class VariableExpr < UnaryExpr
   def initialize(expr)
     @expr = expr
-  end
-
-  def simplify
-    self
   end
 
   def derive(variable)
@@ -189,9 +191,6 @@ class NumberExpr < UnaryExpr
     NumberExpr::ZERO
   end
 
-  def simplify
-    self
-  end
 end
 
 class SineExpr < UnaryExpr
@@ -205,7 +204,7 @@ class SineExpr < UnaryExpr
 
   def simplify
     return NumberExpr.new(Expr.new(0)) if @expr.simplify == NumberExpr::ZERO
-    self
+    super
   end
 
   def derive(variable)
@@ -217,6 +216,7 @@ class CosineExpr < UnaryExpr
   def evaluate(environment={})
     Math.cos(super.evaluate environment)
   end
+
   def to_s
     "cos(#{super.to_s})"
   end
@@ -225,9 +225,6 @@ class CosineExpr < UnaryExpr
     NegateExpr.new(MultiplicationExpr.new((@expr.derive variable),SineExpr.new(@expr)).simplify)
   end
 
-  def simplify
-    self
-  end
 end
 
 class NegateExpr < UnaryExpr
